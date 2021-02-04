@@ -22,7 +22,6 @@ func NewMapBackend() *MapBackend {
 func (b *MapBackend) Close() error {
 	b.roles = nil
 	b.parents = nil
-	b.Unlock()
 	return nil
 }
 

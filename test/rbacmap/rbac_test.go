@@ -101,11 +101,11 @@ func TestPermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	granted := auth.IsGranted(r.ID(), p, nil)
+	granted := auth.IsGranted(r.ID(), *p, nil)
 	if !granted {
 		t.Fatal("problem with permission grant")
 	}
-	granted = auth.IsGranted("wrong", p, nil)
+	granted = auth.IsGranted("wrong", *p, nil)
 	if granted {
 		t.Fatal("problem with permission grant")
 	}
