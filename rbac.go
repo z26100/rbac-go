@@ -4,8 +4,58 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mikespook/gorbac"
-	_ "github.com/mikespook/gorbac"
+	"regexp"
+	"strings"
 )
+
+type RBACRole struct {
+	Name        string
+	Permissions map[string]*RBACPermission
+}
+
+func (r RBACRole) ID() string {
+	return strings.ToLower(r.Name)
+}
+
+func (r RBACRole) Permit(action gorbac.Permission) bool {
+	if r.Permissions == nil {
+		return false
+	}
+	for _, v := range r.Permissions {
+		if v.Match(action) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *RBACRole) AddPermission(permission *RBACPermission) error {
+	if r.Permissions == nil {
+		r.Permissions = make(map[string]*RBACPermission)
+	}
+	r.Permissions[permission.ID()] = permission
+	return nil
+}
+
+func (r RBACRole) GetPermissions() []gorbac.Permission {
+	var result []gorbac.Permission
+	for _, v := range r.Permissions {
+		result = append(result, v)
+	}
+	return result
+}
+
+type RBACPermission struct {
+	Name string
+}
+
+func (p RBACPermission) ID() string {
+	return p.Name
+}
+func (p RBACPermission) Match(action gorbac.Permission) bool {
+	match := regexp.MustCompile(p.ID()).MatchString(action.ID())
+	return match
+}
 
 func Default() *RBAC {
 	return &RBAC{
@@ -22,6 +72,10 @@ func New(backend Backend) *RBAC {
 	return rbac
 }
 
+func CloseRBAC() {
+
+}
+
 // RBAC object, in most cases it should be used as a singleton.
 type RBAC struct {
 	backend Backend
@@ -36,6 +90,21 @@ var (
 	empty        = struct{}{}
 )
 
+func (rbac *RBAC) Close() error {
+	return rbac.backend.Close()
+}
+
+func (rbac *RBAC) Clear() error {
+	return rbac.backend.Clear()
+}
+
+// Assign a permission to the role.
+func (rbac *RBAC) AssignRole(role *RBACRole, p *RBACPermission) error {
+	rbac.backend.Lock()
+	defer rbac.backend.Unlock()
+	return role.AddPermission(p)
+}
+
 // SetParents bind `parents` to the role `id`.
 // If the role or any of parents is not existing,
 // an error will be returned.
@@ -49,10 +118,10 @@ func (rbac *RBAC) SetParents(id string, parents []string) error {
 		}
 	}
 	if _, ok := rbac.backend.GetParents(id); !ok {
-		rbac.backend.SetParents(id,make(map[string]struct{}))
+		rbac.backend.SetParents(id, make(map[string]struct{}))
 	}
 	for _, parent := range parents {
-		rbac.backend.SetParent(id,parent, empty)
+		rbac.backend.SetParent(id, parent, empty)
 	}
 	return nil
 }
@@ -91,10 +160,10 @@ func (rbac *RBAC) SetParent(id string, parent string) error {
 		return ErrRoleNotExist
 	}
 	if _, ok := rbac.backend.GetParents(id); !ok {
-		rbac.backend.SetParents(id,make(map[string]struct{}))
+		rbac.backend.SetParents(id, make(map[string]struct{}))
 	}
 	var empty struct{}
-	rbac.backend.SetParent(id, parent,empty)
+	rbac.backend.SetParent(id, parent, empty)
 	return nil
 }
 
@@ -117,13 +186,23 @@ func (rbac *RBAC) RemoveParent(id string, parent string) error {
 // Add a role `r`.
 func (rbac *RBAC) Add(r gorbac.Role) (err error) {
 	rbac.backend.Lock()
+	defer rbac.backend.Unlock()
 	if _, ok := rbac.backend.GetRole(r.ID()); !ok {
-		rbac.backend.SetRole(r.ID(), r)
+		err = rbac.backend.SetRole(r.ID(), r)
+		if err != nil {
+			return err
+		}
 	} else {
 		err = ErrRoleExist
 	}
-	rbac.backend.Unlock()
 	return
+}
+
+// Add a role `r`.
+func (rbac *RBAC) Set(r gorbac.Role) (err error) {
+	rbac.backend.Lock()
+	defer rbac.backend.Unlock()
+	return rbac.backend.SetRole(r.ID(), r)
 }
 
 // Remove the role by `id`.
@@ -202,12 +281,8 @@ func (rbac *RBAC) recursionCheck(id string, p gorbac.Permission) bool {
 	return false
 }
 
-
-// WalkHandler is a function defined by user to handle role
-type WalkHandler func(gorbac.Role, []string) error
-
 // Walk passes each Role to WalkHandler
-func Walk(rbac *RBAC, h WalkHandler) (err error) {
+func Walk(rbac *RBAC, h gorbac.WalkHandler) (err error) {
 	if h == nil {
 		return
 	}
@@ -215,8 +290,8 @@ func Walk(rbac *RBAC, h WalkHandler) (err error) {
 	defer rbac.backend.Unlock()
 	for id := range rbac.backend.GetRoles() {
 		var parents []string
-		r,_ := rbac.backend.GetRole(id)
-		p,_ := rbac.backend.GetParents(id)
+		r, _ := rbac.backend.GetRole(id)
+		p, _ := rbac.backend.GetParents(id)
 		for parent := range p {
 			parents = append(parents, parent)
 		}
@@ -243,7 +318,6 @@ func InherCircle(rbac *RBAC) (err error) {
 	return err
 }
 
-
 // https://en.wikipedia.org/wiki/Depth-first_search
 func dfs(rbac *RBAC, id string, skipped map[string]struct{}, stack []string) error {
 	if _, ok := skipped[id]; ok {
@@ -254,7 +328,7 @@ func dfs(rbac *RBAC, id string, skipped map[string]struct{}, stack []string) err
 			return ErrFoundCircle
 		}
 	}
-	parents,_ := rbac.backend.GetParents(id)
+	parents, _ := rbac.backend.GetParents(id)
 	if len(parents) == 0 {
 		stack = nil
 		skipped[id] = empty

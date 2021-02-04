@@ -1,0 +1,7 @@
+inher:
+    role-1: [role-0]
+roles:
+    role-0:
+        - p-0
+    role-1:
+        - p-1

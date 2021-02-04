@@ -1,0 +1,6 @@
+inher: {}
+roles: {}
+]
+roles:
+    role-1:
+        - P-1

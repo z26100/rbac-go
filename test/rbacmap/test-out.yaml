@@ -1,0 +1,5 @@
+inher:
+    role-1: []
+roles:
+    role-1:
+        - P-1
