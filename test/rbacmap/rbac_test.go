@@ -1,8 +1,8 @@
 package rbacmap
 
 import (
-	rbac2 "github.com/z26100/rbac"
-	auth "github.com/z26100/rbac/auth"
+	rbac2 "github.com/z26100/rbac-go"
+	auth "github.com/z26100/rbac-go/auth"
 	"testing"
 )
 
