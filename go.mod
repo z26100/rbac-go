@@ -1,4 +1,4 @@
-module github.com/z26100/rbac
+module github.com/z26100/rbac-go
 
 go 1.15
 
