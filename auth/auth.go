@@ -55,6 +55,10 @@ func GetRole(id string) (*rbac2.RBACRole, []string, error) {
 	return role.(*rbac2.RBACRole), parents, err
 }
 
+func GetBackend() *rbac2.RBAC {
+	return rbac
+}
+
 func AddPermission(name string) *rbac2.RBACPermission {
 	permission := &rbac2.RBACPermission{
 		Name: name,
