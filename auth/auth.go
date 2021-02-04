@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/mikespook/gorbac"
 	log "github.com/z26100/log-go"
-	rbac2 "github.com/z26100/rbac"
+	rbac2 "github.com/z26100/rbac-go"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gopkg.in/yaml.v3"
