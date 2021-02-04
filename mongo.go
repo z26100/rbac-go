@@ -72,13 +72,13 @@ func (b *MongoBackend) RUnlock() {
 }
 
 func (b *MongoBackend) GetRoles() map[string]gorbac.Role {
-	var res []gorbac.Role
 	result := make(map[string]gorbac.Role)
-	_, err := FindMany(b.mongo, b.config, b.colRoles, bson.M{}, &res)
-	if res == nil || len(res) == 0 || err != nil {
+	res, err := FindMany(b.mongo, b.config, b.colRoles, bson.M{}, []*RBACRole{})
+	r := res.([]*RBACRole)
+	if res == nil || len(r) == 0 || err != nil {
 		return result
 	}
-	for _, r := range res {
+	for _, r := range r {
 		result[r.ID()] = r
 	}
 	return result
